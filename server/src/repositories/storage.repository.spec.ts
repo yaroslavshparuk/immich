@@ -95,10 +95,11 @@ describe(StorageRepository.name, () => {
   });
 
   describe('checkDiskUsage', () => {
-    it('should return disk usage in bytes', async () => {
+    it('should prefer frsize when available', async () => {
       mocks.statfs.mockResolvedValue({
         type: 0,
         bsize: 4096,
+        frsize: 512,
         blocks: 300,
         bfree: 200,
         bavail: 100,
@@ -107,11 +108,30 @@ describe(StorageRepository.name, () => {
       });
 
       await expect(sut.checkDiskUsage('/photos')).resolves.toEqual({
+        available: 51_200,
+        free: 102_400,
+        total: 153_600,
+      });
+      expect(mocks.statfs).toHaveBeenCalledWith('/photos');
+    });
+
+    it('should fall back to bsize when frsize is unavailable (older Node.js)', async () => {
+      const legacyStats = {
+        type: 0,
+        bsize: 4096,
+        blocks: 300,
+        bfree: 200,
+        bavail: 100,
+        files: 0,
+        ffree: 0,
+      };
+      mocks.statfs.mockResolvedValue(legacyStats as typeof legacyStats & { frsize: number });
+
+      await expect(sut.checkDiskUsage('/photos')).resolves.toEqual({
         available: 409_600,
         free: 819_200,
         total: 1_228_800,
       });
-      expect(mocks.statfs).toHaveBeenCalledWith('/photos');
     });
   });
 });

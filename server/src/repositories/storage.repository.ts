@@ -217,10 +217,12 @@ export class StorageRepository {
 
   async checkDiskUsage(folder: string): Promise<DiskUsage> {
     const stats = await fs.statfs(folder);
+    // `frsize` is missing on older Node.js versions, fall back to `bsize`
+    const blockSize = stats.frsize ?? stats.bsize;
     return {
-      available: stats.bavail * stats.bsize,
-      free: stats.bfree * stats.bsize,
-      total: stats.blocks * stats.bsize,
+      available: stats.bavail * blockSize,
+      free: stats.bfree * blockSize,
+      total: stats.blocks * blockSize,
     };
   }
 
